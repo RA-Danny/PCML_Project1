@@ -1,8 +1,6 @@
 import numpy as np
 from helpers import *
-
-def compute_loss(y, tx, w):
-    return np.sum(np.power(y- tx @ w,2))/(2*len(y))
+from costs import *
 
 def compute_gradient(y, tx, w):
     e = y - tx @ w;
@@ -25,11 +23,21 @@ def split_data(y, x, ratio):
 
     return x_train,x_test,y_train,y_test
 
+def build_k_indices(y, k_fold, seed):
+    """build k indices for k-fold."""
+    num_row = y.shape[0]
+    interval = int(num_row / k_fold)
+    np.random.seed(seed)
+    indices = np.random.permutation(num_row)
+    k_indices = [indices[k * interval: (k + 1) * interval]
+                 for k in range(k_fold)]
+    return np.array(k_indices)
+
 def build_poly(x, degree):
     """polynomial basis functions for input data x, for j=0 up to j=degree."""
-    x_poly = x
-    for i in range(1,degree):
-        x_poly = np.c_[x_poly,np.power(x,i+1)]
+    x_poly = np.ones(np.shape(x))
+    for i in range(1,degree+1):
+        x_poly = np.c_[x_poly,np.power(x,i)]
 
     return x_poly;
 
@@ -46,9 +54,9 @@ def calculate_hessian(y, tx, w):
     S = np.zeros([tx.shape[0],tx.shape[0]])
     S_vect = sigmoid(tx @ w)*(1-sigmoid(tx @ w))
     for i in range(tx.shape[0]):
-       for j in range(tx.shape[0]): 
-        if(i == j):
-            S[i,j] = S_vect[i]
+        for j in range(tx.shape[0]): 
+            if(i == j):
+                S[i,j] = S_vect[i]
     return tx.T @ S @ tx
 
 def calculate_loss(y, tx, w):
@@ -105,19 +113,18 @@ def least_squares_SGD(y,tx,initial_w,batch_size,max_iters,gamma):
     for n_iter in range(max_iters):
         for y_batch, tx_batch in batch:
             gradient = compute_gradient(y_batch,tx_batch,w);
-        
-        loss = compute_loss(y_batch,tx_batch,w);
-        w = w  - gamma*gradient;
-        ws.append(w);
-        losses.append(loss);
+            loss = compute_loss(y_batch,tx_batch,w);
+            w = w  - gamma*gradient;
+            ws.append(w);
+            losses.append(loss);
 
     return losses[max_iters -1], ws[max_iters -1]
 
 def ridge_regression(y, tx, lamb):
     """implement ridge regression."""
-    m = np.shape(tx)[1]
-    M = lamb*2*m*np.eye(m)
-    #M[0,0] = 0; #depends on the matrix tx we give
+    m = np.shape(y)[0]
+    M = lamb*2*m*np.eye(np.shape(tx)[1])
+    M[0,0] = 0; #depends on the matrix tx we give
     weight = np.linalg.solve(tx.T @ tx + M,tx.T @ y)  
     mse = compute_loss(y, tx, weight)   
     return mse,weight
