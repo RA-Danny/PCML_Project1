@@ -41,9 +41,24 @@ def build_poly(x, degree):
 
     return x_poly;
 
+def build_poly2(x, degree):
+    """polynomial basis functions for input data x, for j=0 up to j=degree."""
+    x_poly = np.ones(np.shape(x))
+    for i in range(1,degree+1):
+        vect = []
+        for j in range(0,i+1):
+            c = []
+            for n in range(0,np.shape(x)[0]):
+                a = np.power(x[n],i-j)
+                b = np.power(x[np.shape(x)[0]-n-1],j)
+                c.append(a*b)
+            x_poly = np.c_[x_poly,c]
+
+    return x_poly;
+
 def sigmoid(t):
     """apply sigmoid function on t."""
-    return 1/(1+np.power(math.e,-t))
+    return 1/(1+np.power(np.e,-t))
 
 def calculate_hessian(y, tx, w):
     """return the hessian of the loss function."""
@@ -129,28 +144,32 @@ def ridge_regression(y, tx, lamb):
     mse = compute_loss(y, tx, weight)   
     return mse,weight
 
-def reg_logistic_regression(y, tx, lambda_ , gamma, max_iters):
-    threshold = 1e-8
+    
+def reg_logistic_regression(y, tx, lambda_,gamma,max_iters):
+    
+    initial_w = np.random.uniform(low=-0.05, high=0.05, size=tx.shape[1])
+    ws = [initial_w]
     losses = []
-    ws = np.zeros((tx.shape[1], 1))
-
-    for iter in range(max_iters):
-        # get loss and update w.
-        loss, w = learning_by_penalized_gradient(y, tx, ws, gamma, lambda_)
-        # log info
-        if iter % 500 == 0:
-            print("Current iteration={i}, the loss={l}".format(i=iter, l=loss))
-        # converge criteria
+    w = initial_w
+    for n_iter in range(max_iters):
+        c = np.apply_along_axis(sigmoid,0,tx @ b)
+        d = np.subtract(c,y)
+        gradient = tx.T @ d
+             
+        grad=gradient/y.shape[0] + lambda_*np.sum(w)
+        
+        loss=compute_loss(y, tx, w)
+        w = w - gamma*grad
+        
+        ws.append(np.copy(w))
         losses.append(loss)
-        ws.append(w)
-        if len(losses) > 1 and np.abs(losses[-1] - losses[-2]) < threshold:
-            break
-    # visualization
-    visualization(y, x, mean_x, std_x, w, "classification_by_logistic_regression_penalized_gradient_descent")
-    print("The loss={l}".format(l=calculate_loss(y, tx, w)))
-    
-    return loss,ws
-    
+        y_new=np.sign(np.dot(tx,w))
+        
+        if n_iter%1 == 0:
+            print('iteration: ', n_iter, ' Test accuracy: ', float(np.sum(y==y_new))/y.shape[0], ' Loss : ', loss)
+        
+    return losses, ws
+
 def logistic_regression(y, tx, gamma, max_iters):
     return reg_logisitc_regression(y, tx,0,gamma, max_iters)
     
