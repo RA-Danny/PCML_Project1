@@ -8,7 +8,6 @@ from costs import *
 
 def least_squares(y, tx):
     """Least square algorithm."""
-
     weight = np.linalg.solve(tx.T @ tx, tx.T @ y)
     mse = compute_loss(y,tx,weight)
 
@@ -104,22 +103,30 @@ def compute_gradient(y, tx, w):
 
 
 
-def split_data(y, x, ratio):
+def split_data(y, x, ratio, seed=1):
     """split the dataset based on the split ratio."""
-    arr = np.arange(len(x))
-    np.random.shuffle(arr)
-    x_shuffle = x[arr]
-    y_shuffle = y[arr]
-
-    x_new = np.split(x_shuffle,[len(x)*ratio])
-    x_train = x_new[0]
-    x_test = x_new[1]
+    # set seed (set an 'order' in the random variable (not so random so))
+    np.random.seed(seed)
     
-    y_new = np.split(y_shuffle,[len(x)*ratio])
-    y_train = y_new[0]
-    y_test = y_new[1]
-
-    return x_train,x_test,y_train,y_test
+    # The split data will be randomnized
+    indexes = np.arange(len(x))
+    np.random.shuffle(indexes)
+    
+    size_data = int(len(x)*ratio) # cast to 'int' in order to avoid ipython warning
+    
+    # Randomnize the order in x and y matrices
+    x_shuffle = x[indexes]
+    y_shuffle = y[indexes]
+    
+    # Train
+    x_train = x_shuffle[:size_data]
+    y_train = y_shuffle[:size_data]
+    
+    # Test
+    x_test = x_shuffle[size_data:]
+    y_test = y_shuffle[size_data:]
+    
+    return x_train, x_test, y_train, y_test
 
 
 
@@ -175,3 +182,61 @@ def calculate_loss(y, tx, w):
 def calculate_gradient(y, tx, w):
     """compute the gradient of loss."""
     return tx.T@(sigmoid(tx @ w) - y)
+
+
+def split_over22(y,tX,ids):
+    tX_sort = []
+    y_sort = []
+    ids_sort = []
+
+    for i in range(0,4):
+        idx = np.where(tX[:,22]==i)
+        idx = idx[0]
+        tX_sort.append(tX[idx,:])
+        y_sort.append(y[idx])  
+        ids_sort.append(ids[idx])
+
+    return y_sort, tX_sort, ids_sort
+
+def clean_unique_values_columns(tx):
+    tX_sort_clean = []
+    for x in tx:
+        print("Rank:",np.linalg.matrix_rank(x))
+
+        col_to_keep = []
+        for i, col in enumerate(x.T):
+            nbr_of_unique = np.unique(col).shape[0]
+            if nbr_of_unique != 1:
+                col_to_keep.append(i)
+        tX_sort_clean.append(x[:,col_to_keep])
+
+    return tX_sort_clean;
+
+def remove_and_standardize(tx):
+    tX_stand = []
+    for x in tx:
+        #remove -999 to the mean of the colum
+        for column in x.T:
+            clean = column[np.where(column != -999)]
+            if len(clean) != 0:
+                mean = np.mean(clean)
+                column[np.where(column == -999)] = mean
+
+        standard_data = standardize(x)
+        tX_stand.append(standard_data[0])
+    return tX_stand
+
+def split_data_for_train_test(y, x, ratio):
+    x_train = []
+    x_test = []
+    y_train = []
+    y_test = []
+    for i in range(0,4):
+        x_tr, x_te, y_tr,y_te = split_data(y[i],x[i],ratio)
+
+        x_train.append(x_tr)
+        x_test.append(x_te)
+        y_train.append(y_tr)
+        y_test.append(y_te)
+        
+    return x_train, x_test, y_train, y_test
