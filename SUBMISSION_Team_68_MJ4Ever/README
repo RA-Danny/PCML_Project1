@@ -1,0 +1,19 @@
+TEAM: 68_MJ4Ever
+Members:
+	Güler Hilal        245052
+	Rodrigues Danny    225749
+	Stettler Michael   216864 
+
+
+RUN.PY
+	We assume files "test.csv" and "train.csv" are in a folder named "data" one level higher in the file hierarchy.
+		../data/test.csv
+		../data/train.csv
+
+	Output: "submission.csv", file containing the prediction for each value in "../data/test.csv"
+		Format: ID, Prediction
+
+In the Kaggle plateform, we achieve a score of 0.82676 in the public leaderboard.
+
+
+NB: The .py files where generate through Jupyter-notebook with some cleaning afterwards.
