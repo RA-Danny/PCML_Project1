@@ -150,19 +150,23 @@ def build_poly(x, degree):
 
     return x_poly;
 
+
 def build_poly2(x, degree):
     """polynomial basis functions for input data x, for j=0 up to j=degree."""
     x_poly = np.ones(np.shape(x))
+    
     for i in range(1,degree+1):
-        vect = []
+        
         for j in range(0,i+1):
             c = []
+            
             for n in range(0,np.shape(x)[0]):
                 a = np.power(x[n],i-j)
                 b = np.power(x[np.shape(x)[0]-n-1],j)
                 c.append(a*b)
+            
             x_poly = np.c_[x_poly,c]
-
+            
     return x_poly;
 
 
@@ -184,36 +188,54 @@ def calculate_gradient(y, tx, w):
     return tx.T@(sigmoid(tx @ w) - y)
 
 
-def split_over22(y,tX,ids):
-    tX_sort = []
+
+def split_over_column(y, tX, ids, columnNbr):
+    """
+       Split the data for all unique values in a specified column.
+        
+       Return a list containing all matrices obtained by the split operation
+    """
+    
     y_sort = []
+    tX_sort = []
     ids_sort = []
 
-    for i in range(0,4):
-        idx = np.where(tX[:,22]==i)
-        idx = idx[0]
-        tX_sort.append(tX[idx,:])
+    uniques = np.unique(tX[:,columnNbr])
+    for i in uniques:
+        idx = np.where(tX[:,columnNbr]==i)[0]
+        
         y_sort.append(y[idx])  
+        tX_sort.append(tX[idx,:])
         ids_sort.append(ids[idx])
 
     return y_sort, tX_sort, ids_sort
 
-def clean_unique_values_columns(tx):
-    tX_sort_clean = []
-    for x in tx:
-        print("Rank:",np.linalg.matrix_rank(x))
 
+
+def clean_unique_values_columns(tx_arr):
+    """Remove all columns in a matrix containing an unique value for each row"""
+    
+    tX_sort_clean = []
+    
+    for x in tx_arr:
         col_to_keep = []
+        
         for i, col in enumerate(x.T):
             nbr_of_unique = np.unique(col).shape[0]
             if nbr_of_unique != 1:
                 col_to_keep.append(i)
+        
         tX_sort_clean.append(x[:,col_to_keep])
 
     return tX_sort_clean;
 
+
+
 def remove_and_standardize(tx):
+    """Change all values containg -999 by the mean of its column and standardize the column after"""
+    
     tX_stand = []
+    
     for x in tx:
         #remove -999 to the mean of the colum
         for column in x.T:
@@ -224,15 +246,21 @@ def remove_and_standardize(tx):
 
         standard_data = standardize(x)
         tX_stand.append(standard_data[0])
+    
     return tX_stand
 
+
+
 def split_data_for_train_test(y, x, ratio):
+    """Split all the matrices into train and test ones"""
+    
     x_train = []
-    x_test = []
+    x_test  = []
     y_train = []
-    y_test = []
-    for i in range(0,4):
-        x_tr, x_te, y_tr,y_te = split_data(y[i],x[i],ratio)
+    y_test  = []
+    
+    for i in range(0, len(y)):
+        x_tr, x_te, y_tr, y_te = split_data(y[i],x[i],ratio)
 
         x_train.append(x_tr)
         x_test.append(x_te)
@@ -240,3 +268,69 @@ def split_data_for_train_test(y, x, ratio):
         y_test.append(y_te)
         
     return x_train, x_test, y_train, y_test
+
+
+
+
+def k_fold_means_ridge(y, x, degree, lambda_, k_fold, idx):
+    """Cross-validation with ridge regression algorithm and k-fold """
+    train_mse = []
+    cv_mse = []
+
+    #k fold
+    for k in range(k_fold):
+        x_cv = x[idx[k]]
+        y_cv = y[idx[k]]
+
+        #remove
+        rem_indice = idx[~(np.arange(idx.shape[0])==k)]
+
+        #set them in a vector
+        rem_indice = rem_indice.reshape(-1)
+        x_train_fold = x[rem_indice]
+        y_train_fold = y[rem_indice]
+
+        #get the ones in the matrix
+        x_train_poly = build_poly(x_train_fold,degree)
+        x_cv_poly = build_poly(x_cv,degree)
+
+        mse_train,w = ridge_regression(y_train_fold, x_train_poly, lambda_)
+        mse_cv = compute_loss(y_cv,x_cv_poly,w)
+
+        train_mse.append(mse_train)
+        cv_mse.append(mse_cv)
+
+    return np.mean(train_mse), np.mean(cv_mse)
+
+
+
+def k_fold_means_logistic(y, x, lambda_, k_fold, idx, max_iters, gamma):
+    """Cross-validation with logistic ridge regression algorithm and k-fold """
+    
+    train_mse = []
+    cv_mse = []
+
+    #k fold
+    for k in range(k_fold):
+        x_cv = x[idx[k]]
+        y_cv = y[idx[k]]
+
+        #remove
+        rem_indice = idx[~(np.arange(idx.shape[0])==k)]
+
+        #set them in a vector
+        rem_indice = rem_indice.reshape(-1)
+        x_train_fold = x[rem_indice]
+        y_train_fold = y[rem_indice]
+
+        
+        w_initial = np.random.uniform(low = -0.05,high = 0.05, size = np.shape(x_train_fold)[1])
+           
+        mse_train,w = reg_logistic_regression(y_train_fold, x_train_fold, lambda_, w_initial, max_iters, gamma)
+        mse_cv = compute_loss(y_cv,x_cv,w)
+        
+        
+        train_mse.append(mse_train)
+        cv_mse.append(mse_cv)
+
+    return np.mean(train_mse), np.mean(cv_mse)
